@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { processDocument } from "../services/documentProcessor.js";
 import type { StoredDocument } from "../types.js";
 import { limitedMemoryStorage } from "../upload/limitedMemoryStorage.js";
-import { saveDocuments } from "../db/persistence.js";
+import { getDocumentsBySessionId, saveDocuments } from "../db/persistence.js";
 
 const router = Router();
 const maxFileSizeBytes = Number(process.env.MAX_FILE_SIZE_MB ?? 10) * 1024 * 1024;
@@ -39,7 +39,7 @@ router.post("/process", (request, response) => {
     try {
       const processed = await Promise.all(files.map(processDocument));
       const sessionId = randomUUID();
-      await saveDocuments(processed);
+      await saveDocuments(sessionId, processed);
       sessions.set(sessionId, processed);
       response.status(200).json({ sessionId, files: processed });
     } catch (processingError) {
@@ -48,8 +48,12 @@ router.post("/process", (request, response) => {
   });
 });
 
-export function getSessionDocuments(sessionId: string): StoredDocument[] | undefined {
-  return sessions.get(sessionId);
+export async function getSessionDocuments(sessionId: string): Promise<StoredDocument[] | undefined> {
+  const cached = sessions.get(sessionId);
+  if (cached) return cached;
+  const persisted = await getDocumentsBySessionId(sessionId);
+  if (persisted) sessions.set(sessionId, persisted);
+  return persisted;
 }
 
 export default router;
