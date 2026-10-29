@@ -14,6 +14,7 @@ for (const statement of statements) await getPool().query(statement);
 // CREATE TABLE IF NOT EXISTS does not change an already-existing table. Keep
 // upgrades safe for databases created by earlier versions of the workbench.
 const requiredDocumentColumns: Record<string, string> = {
+  session_id: "CHAR(36) NULL",
   mime_type: "VARCHAR(100) NULL",
   size_bytes: "BIGINT UNSIGNED NULL",
   status: "VARCHAR(30) NULL",
