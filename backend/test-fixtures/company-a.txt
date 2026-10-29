@@ -1,0 +1,3 @@
+Company: Northwind Analytics
+Revenue: 1000000
+Application date: 2026-10-01

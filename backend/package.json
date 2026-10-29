@@ -1,0 +1,30 @@
+{
+  "name": "document-workbench-backend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "test": "tsx --test src/services/documentProcessor.test.ts src/services/analyzer.test.ts src/services/geminiProvider.test.ts",
+    "db:init": "tsx src/db/initSchema.ts",
+    "db:verify": "tsx src/db/verifyConnection.ts"
+  },
+  "dependencies": {
+    "@types/multer": "^1.4.12",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mysql2": "^3.11.5",
+    "multer": "^1.4.5-lts.1",
+    "pdfjs-dist": "^4.10.38"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.2",
+    "pdf-lib": "^1.17.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
