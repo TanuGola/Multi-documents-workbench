@@ -2,22 +2,52 @@ import type { RowDataPacket } from "mysql2";
 import { getPool, withTransaction } from "./pool.js";
 import type { AnalysisResult, StoredDocument } from "../types.js";
 
-export async function saveDocuments(documents: StoredDocument[]): Promise<void> {
+export async function saveDocuments(sessionId: string, documents: StoredDocument[]): Promise<void> {
   await withTransaction(async (connection) => {
     for (const document of documents) {
       await connection.execute(
         `INSERT INTO documents
-          (id, filename, mime_type, size_bytes, status, character_count, extracted_text, error_message)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          (id, session_id, filename, mime_type, size_bytes, status, character_count, extracted_text, error_message)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
+           session_id = VALUES(session_id),
            filename = VALUES(filename), mime_type = VALUES(mime_type), size_bytes = VALUES(size_bytes),
            status = VALUES(status), character_count = VALUES(character_count),
            extracted_text = VALUES(extracted_text), error_message = VALUES(error_message), updated_at = CURRENT_TIMESTAMP`,
-        [document.id, document.filename, document.mimeType, document.sizeBytes, document.status,
+        [document.id, sessionId, document.filename, document.mimeType, document.sizeBytes, document.status,
           document.characterCount, document.extractedText || null, document.error ?? null],
       );
     }
   });
+}
+
+interface SessionDocumentRow extends RowDataPacket {
+  id: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  status: StoredDocument["status"];
+  characterCount: number;
+  extractedText: string | null;
+  errorMessage: string | null;
+}
+
+export async function getDocumentsBySessionId(sessionId: string): Promise<StoredDocument[] | undefined> {
+  const [rows] = await getPool().execute<SessionDocumentRow[]>(
+    `SELECT id, filename, mime_type AS mimeType, size_bytes AS sizeBytes,
+            status, character_count AS characterCount, extracted_text AS extractedText,
+            error_message AS errorMessage
+       FROM documents
+      WHERE session_id = ?
+      ORDER BY created_at, id`,
+    [sessionId],
+  );
+  if (rows.length === 0) return undefined;
+  return rows.map(({ errorMessage, ...document }) => ({
+    ...document,
+    extractedText: document.extractedText ?? "",
+    ...(errorMessage ? { error: errorMessage } : {}),
+  }));
 }
 
 export async function saveAnalysis(
