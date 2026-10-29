@@ -21,7 +21,7 @@ router.get("/:analysisId", async (request, response) => {
   }
 });
 
-router.post("/", (request, response) => {
+router.post("/", async (request, response) => {
   const { sessionId, instruction } = request.body as { sessionId?: unknown; instruction?: unknown };
   if (typeof sessionId !== "string" || !sessionId.trim()) {
     response.status(400).json({ error: "sessionId is required." });
@@ -36,38 +36,37 @@ router.post("/", (request, response) => {
     return;
   }
 
-  const documents = getSessionDocuments(sessionId);
-  if (!documents) {
-    response.status(404).json({ error: "The upload session was not found." });
-    return;
-  }
-  const readableDocuments = documents.filter((document) => document.status === "processed");
-  if (readableDocuments.length === 0) {
-    response.status(422).json({ error: "The session has no readable documents to analyze." });
-    return;
-  }
+  try {
+    const documents = await getSessionDocuments(sessionId);
+    if (!documents) {
+      response.status(404).json({ error: "The upload session was not found." });
+      return;
+    }
+    const readableDocuments = documents.filter((document) => document.status === "processed");
+    if (readableDocuments.length === 0) {
+      response.status(422).json({ error: "The session has no readable documents to analyze." });
+      return;
+    }
 
-  runAnalysis(sessionId, instruction.trim(), readableDocuments)
-    .then(async (result) => {
-      const mode = (process.env.AI_MODE ?? "mock").trim().toLowerCase() === "gemini" ? "gemini" as const : "mock" as const;
-      const analysisId = randomUUID();
-      const persistedResult = {
-        ...result,
-        analysisId,
-        mode,
-        createdAt: new Date().toISOString(),
-        documents: documents.map(({ extractedText: _extractedText, ...document }) => document),
-      };
-      await saveAnalysis(analysisId, sessionId, instruction.trim(), mode, persistedResult, documents);
-      response.json(persistedResult);
-    })
-    .catch((error: unknown) => {
-      if (error instanceof AnalysisProviderError) {
-        response.status(error.httpStatus).json({ error: error.message, code: error.code });
-        return;
-      }
-      response.status(500).json({ error: error instanceof Error ? error.message : "Analysis failed." });
-    });
+    const result = await runAnalysis(sessionId, instruction.trim(), readableDocuments);
+    const mode = (process.env.AI_MODE ?? "mock").trim().toLowerCase() === "gemini" ? "gemini" as const : "mock" as const;
+    const analysisId = randomUUID();
+    const persistedResult = {
+      ...result,
+      analysisId,
+      mode,
+      createdAt: new Date().toISOString(),
+      documents: documents.map(({ extractedText: _extractedText, ...document }) => document),
+    };
+    await saveAnalysis(analysisId, sessionId, instruction.trim(), mode, persistedResult, documents);
+    response.json(persistedResult);
+  } catch (error: unknown) {
+    if (error instanceof AnalysisProviderError) {
+      response.status(error.httpStatus).json({ error: error.message, code: error.code });
+      return;
+    }
+    response.status(500).json({ error: error instanceof Error ? error.message : "Analysis failed." });
+  }
 });
 
 export default router;
