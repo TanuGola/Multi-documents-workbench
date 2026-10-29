@@ -3,6 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS documents (
   id CHAR(36) NOT NULL,
+  session_id CHAR(36) NULL,
   filename VARCHAR(255) NOT NULL,
   mime_type VARCHAR(100) NOT NULL,
   size_bytes BIGINT UNSIGNED NOT NULL,
@@ -13,6 +14,7 @@ CREATE TABLE IF NOT EXISTS documents (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
+  KEY idx_documents_session_id (session_id),
   KEY idx_documents_status (status),
   KEY idx_documents_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
