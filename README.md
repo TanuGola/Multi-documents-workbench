@@ -31,13 +31,15 @@ Small full-stack workbench for structured, evidence-backed analysis of synthetic
    npm run db:verify
    ```
 
-   These commands use `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, and `MYSQL_DATABASE`. The schema targets the existing `document_workbench` database and does not create a second database.
+   These commands use `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, and `MYSQL_DATABASE`. The schema targets the existing `document_workbench` database and does not create a second database. `npm run db:verify` checks both connectivity and the four required tables. Run `npm run db:init` after upgrading the application as well; it creates missing tables and adds required columns to older `documents` tables.
 
 6. Start both applications:
 
    ```bash
    npm run dev
    ```
+
+   The production backend start command runs the compiled idempotent schema initializer before listening. This creates missing tables and upgrades older `documents` columns; it fails startup if the configured database cannot be reached.
 
 To run them separately:
 
@@ -88,7 +90,7 @@ Gemini failures, invalid structured output, and timeouts return explicit API err
 - Instruction-aware deterministic comparisons that avoid unrelated missing-field claims and keep differently labelled dates separate
 - Provider-result safeguards that remove unrelated findings and downgrade one-source consistency claims to human review
 
-The short-lived upload session remains in backend memory for analysis input, while document metadata, extracted text, analyses, document links, and findings are persisted in MySQL.
+Upload sessions are cached in backend memory for speed and persisted through `documents.session_id`, so analysis can recover the uploaded documents after a backend restart or instance change. Document metadata, extracted text, analyses, document links, and findings are persisted in MySQL.
 
 The frontend communicates only with the backend through `VITE_API_BASE_URL`. CORS is configured on the backend from `CLIENT_ORIGIN`; the frontend never connects directly to MySQL or receives database credentials.
 
@@ -108,6 +110,8 @@ The existing `document_workbench` database is used; `backend/schema.sql` creates
 - `findings` — queryable severity/status fields plus complete structured JSON
 
 All application queries use parameterized placeholders. Run `npm run db:init` after configuring the backend environment, and `npm run db:verify` to check connectivity.
+
+The backend production start command also runs `npm run db:init:compiled` automatically, so a newly provisioned `document_workbench` database does not accept uploads before its tables exist.
 
 ## AI modes and limitations
 
